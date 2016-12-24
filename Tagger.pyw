@@ -17,7 +17,7 @@ class mainWin(QtGui.QWidget):
         self.selecTags = []
         self.fileDir = fileDir
         self.filePath = filepath
-        self.tags = tags
+        self.tagDict = tags
         self.lenTags = len(tags)
 
         self.setUI()
@@ -32,8 +32,8 @@ class mainWin(QtGui.QWidget):
 
         self.fieldTag = QtGui.QLineEdit("")
         self.pastTag = QtGui.QLabel(str(self.lenTags))
-        self.curTag = QtGui.QLabel(self.tags[0])
-        self.futureTag = QtGui.QLabel(self.tags[1])
+        self.curTag = QtGui.QLabel(self.tagDict[0][0])
+        self.futureTag = QtGui.QLabel(self.tagDict[1][0])
         self.imgDisplay = QtGui.QLabel()
         
         self.displayImg()
@@ -57,7 +57,7 @@ class mainWin(QtGui.QWidget):
     def keyPressEvent(self,event):
 
         if event.key() == 16777237: #Key = down arrow
-            self.selecTags.append(self.tags[self.count])
+            self.selecTags.append(self.tagDict[self.count][0])
             self.updateLabel()
 
         if event.key() == 16777235: #Key = up arrow
@@ -79,7 +79,7 @@ class mainWin(QtGui.QWidget):
 
     def updateLabel(self):
 
-        if self.count == len(self.tags)-1:
+        if self.count == len(self.tagDict)-1:
             #If the current index position is the last element of the tag list
             convertToExif(self.fileDir[0],self.filePath,self.selecTags)
             self.count = 0
@@ -89,9 +89,9 @@ class mainWin(QtGui.QWidget):
                 self.fileDir.pop(0)
                 self.displayImg()
 
-                self.curTag.setText(self.tags[0])
-                self.futureTag.setText(self.tags[1])
-                self.pastTag.setText(str(len(self.tags)))
+                self.curTag.setText(self.tagDict[0][0])
+                self.futureTag.setText(self.tagDict[1][0])
+                self.pastTag.setText(str(len(self.tagDict)))
 
 
                 self.fieldTag.setReadOnly(False)
@@ -104,11 +104,11 @@ class mainWin(QtGui.QWidget):
 
         else:
             self.count += 1
-            self.curTag.setText(self.tags[self.count])
-            self.pastTag.setText(str(len(self.tags)-self.count))
+            self.curTag.setText(self.tagDict[self.count][0])
+            self.pastTag.setText(str(len(self.tagDict)-self.count))
             
-            if self.count < len(self.tags)-1:
-                self.futureTag.setText(self.tags[self.count+1])
+            if self.count < len(self.tagDict)-1:
+                self.futureTag.setText(self.tagDict[self.count+1][0])
             else:
                 self.futureTag.setText('-')
             
@@ -150,18 +150,14 @@ tagDict = {}
 tagRoot = ET.parse('data.xml').getroot().find('tags')
 for pos,elem in enumerate(tagRoot):
     tagDict[pos] = [elem.text,elem.get('category')]
-tags = []
-with open('tags.txt','r') as f:
-    for line in f:
-        tags.append(line.rstrip())
 
 #Puts all image file in a given directory, in a list
 fileDir = []
-for i in os.listdir('C:\Users\Quentin\Desktop\Downloads\To_archive\\'):
+for i in os.listdir('C:\Users\Quentin\Desktop\Downloads\To_tag\\'):
     if splitext(i)[1] in ('.jpg','.png','.jpeg'):
         fileDir.append(i)
 fileDir.sort()
 
 app = QtGui.QApplication(sys.argv)
-lul = mainWin('C:\Users\Quentin\Desktop\Downloads\To_archive\\',tags,fileDir)
+lul = mainWin('C:\Users\Quentin\Desktop\Downloads\To_tag\\',tagDict,fileDir)
 sys.exit(app.exec_())
