@@ -61,6 +61,7 @@ def move_file(basePath,markDict,logPath=('arch_log.txt'),fileExt = ['.bmp','.gif
         
         fileQueue = os.listdir(basePath)
         fileCount = 1
+        enableExif = False
         
         if fileQueue: #Put in a list all elements in the root directory, remove all file whose extension isn't contained in fileExt
                 
@@ -79,7 +80,7 @@ def move_file(basePath,markDict,logPath=('arch_log.txt'),fileExt = ['.bmp','.gif
                         except Exception as caughtException:
                                 print "Error during converstion :",caughtException
 
-                if fileObj.sep in fileObj.nametagOnly:
+                if fileObj.sep in fileObj.nametagOnly and enableExif == True:
                         fileObj.nameFull = insertTag(fileObj)
                 for i in markDict: #Test if name of first element in the list is a mark
                         if fileObj.nameOnly == i:
