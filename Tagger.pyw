@@ -1,163 +1,195 @@
 import sys
 import os
 import piexif
-from os.path import splitext
+from os.path import splitext,join
 from PIL import Image
 from PyQt4 import QtGui,QtCore
 from xml.etree import ElementTree as ET
 
 
-
 class mainWin(QtGui.QWidget):
 
-    def __init__(self,filepath,tags,fileDir):
-        super(mainWin,self).__init__()
+	def __init__(self,filepath,tags,fileDir):
+		
+		super(mainWin,self).__init__()
 
-        self.count = 0
-        self.selecTags = []
-        self.fileDir = fileDir
-        self.filePath = filepath
-        self.tagDict = tags
-        self.lenTags = len(tags)
+		self.count = 0
+		self.selectedTags = []
+		self.fileDir = fileDir
+		self.rootDir = filepath
+		self.tagDict = tags
+		self.lenTags = len(tags)
 
-        self.setUI()
-        
-    def displayImg(self,width = 750, height = 750):
-        self.pixmap = QtGui.QPixmap(self.filePath+self.fileDir[0])
-        self.pixmap = self.pixmap.scaled(width,height,QtCore.Qt.KeepAspectRatio)
-        self.imgDisplay.setPixmap(self.pixmap)
+		self.setUI()
+       	
+	def displayImg(self, height=770):
+		self.pixmap = QtGui.QPixmap(self.rootDir+self.fileDir[0])
+		self.pixmap = self.pixmap.scaledToHeight(height,QtCore.Qt.SmoothTransformation)
+		self.setFixedWidth(self.pixmap.width()+20)
+		self.imgDisplayLabel.setPixmap(self.pixmap)
+		
+		
+	def setUI(self):
+		self.setWindowTitle("Tagger")
 
-    def setUI(self):
-        self.setWindowTitle("Tagger")
+		self.tagField = QtGui.QLineEdit("")
+		self.fNameField = QtGui.QLineEdit("")
+		self.tagTypeLabel = QtGui.QLabel(self.tagDict[0][1])
+		self.tagCountLabel = QtGui.QLabel(str(self.lenTags))
+		self.currentTag = QtGui.QLabel(self.tagDict[0][0])
+		self.nextTag = QtGui.QLabel(self.tagDict[1][0])
+		self.imgDisplayLabel = QtGui.QLabel()
 
-        self.fieldTag = QtGui.QLineEdit("")
-        self.pastTag = QtGui.QLabel(str(self.lenTags))
-        self.curTag = QtGui.QLabel(self.tagDict[0][0])
-        self.futureTag = QtGui.QLabel(self.tagDict[1][0])
-        self.imgDisplay = QtGui.QLabel()
-        
-        self.displayImg()
-        
-        self.tagsLayout = QtGui.QHBoxLayout()
-        self.tagsLayout.addWidget(self.pastTag)
-        self.tagsLayout.setAlignment(self.pastTag,QtCore.Qt.AlignRight)
-        self.tagsLayout.addWidget(self.curTag)
-        self.tagsLayout.setAlignment(self.curTag,QtCore.Qt.AlignHCenter)
-        self.tagsLayout.addWidget(self.futureTag)
+		self.displayImg()
+		self.fNameField.setPlaceholderText("file name")
+		self.tagField.setPlaceholderText("exif tags")
 
-        self.UIgrid = QtGui.QGridLayout()
-        self.UIgrid.addWidget(self.fieldTag,0,0)
-        self.UIgrid.addWidget(self.imgDisplay,1,0)
-        self.UIgrid.addLayout(self.tagsLayout,2,0)
-        
-        self.setLayout(self.UIgrid)
-        
-        self.show()
+		self.tagsLayout = QtGui.QHBoxLayout()
+		self.tagsLayout.addWidget(self.tagCountLabel)
+		self.tagsLayout.setAlignment(self.tagCountLabel,QtCore.Qt.AlignRight)
+		self.tagsLayout.addWidget(self.currentTag)
+		self.tagsLayout.setAlignment(self.currentTag,QtCore.Qt.AlignHCenter)
+		self.tagsLayout.addWidget(self.nextTag)
+		
+		self.fieldLayout = QtGui.QHBoxLayout()
+		self.fieldLayout.addWidget(self.tagField)
+		self.fieldLayout.addWidget(self.fNameField)
 
-    def keyPressEvent(self,event):
+		self.UIgrid = QtGui.QGridLayout()
+		self.UIgrid.addLayout(self.fieldLayout,0,0)
+		self.UIgrid.addWidget(self.imgDisplayLabel,1,0)
+		self.UIgrid.addWidget(self.tagTypeLabel,2,0)
+		self.UIgrid.setAlignment(self.tagTypeLabel,QtCore.Qt.AlignHCenter)
+		self.UIgrid.addLayout(self.tagsLayout,3,0)
 
-        if event.key() == 16777237: #Key = down arrow
-            self.selecTags.append(self.tagDict[self.count][0])
-            self.updateLabel()
+		self.setLayout(self.UIgrid)
+		self.setGeometry(200,200,200,200)
 
-        if event.key() == 16777235: #Key = up arrow
-            self.updateLabel()
+		self.show()
 
-        if event.key() == 16777216: #Key = escape
-            self.fieldTag.setReadOnly(True)
-            self.fieldTag.setText("This field is now read-only")
+	def keyPressEvent(self,event):
 
-        if (event.key() in (16777220,16777221) and 
-            self.fieldTag.text() != '' and 
-            not self.fieldTag.isReadOnly()):
-            #Key = enter or return + field not empty + != readonly
-            self.selecTags.append(str(self.fieldTag.text()))
-            self.fieldTag.clear()
+		if event.key() == 16777237: #Key = down arrow (tag selected)
+			self.selectedTags.append(self.tagDict[self.count][0]) #Add the current tag to the selected tags list
+			self.update_tag_label()
 
-        event.accept()
+		if event.key() == 16777235: #Key = up arrow (tag not selected)
+			self.update_tag_label()
+
+		if (event.key() == 16777216 and #Key = escape (next picture)
+			self.fNameField.text() != ''): #Filename field != empty
+			self.count = len(self.tagDict)-1
+			self.update_tag_label()
+
+		if (event.key() in (16777220,16777221) and #Key = enter or return (adds the text in the tag field to the selected tags list)
+			self.tagField.text() != ''): #Tag field != empty
+			self.selectedTags.append(str(self.tagField.text()))
+			self.tagField.clear()
+
+		event.accept()
 
 
-    def updateLabel(self):
+	def update_tag_label(self):
 
-        if self.count == len(self.tagDict)-1:
-            #If the current index position is the last element of the tag list
-            convertToExif(self.fileDir[0],self.filePath,self.selecTags)
-            self.count = 0
-            self.selecTags = []
+		if self.count == len(self.tagDict)-1:
+			#If the current index position is the last element of the tag list
+			filename = self.fNameField.text()
+			fileObj = decompose_file(fileDir[0],self.rootDir)
+			os.rename(fileObj["pathFull"],fileObj["target"]+filename+"!"+fileObj["counter"]+fileObj["ext"]) #Rename file for moving
+			convert_to_exif(str(filename+"!"+fileObj["counter"]+fileObj["ext"]),fileObj["target"],self.selectedTags)
+			self.count = 0
+			self.selectedTags = []
             
-            if len(self.fileDir) > 1:
-                self.fileDir.pop(0)
-                self.displayImg()
+			if len(self.fileDir) > 1: #If there are files left to tag
+				self.fileDir.pop(0)
+				self.displayImg()
 
-                self.curTag.setText(self.tagDict[0][0])
-                self.futureTag.setText(self.tagDict[1][0])
-                self.pastTag.setText(str(len(self.tagDict)))
+				self.currentTag.setText(self.tagDict[0][0])
+				self.tagTypeLabel.setText(self.tagDict[0][1])
+				self.nextTag.setText(self.tagDict[1][0])
+				self.tagCountLabel.setText(str(len(self.tagDict)))
+
+				self.tagField.clear()
+				self.fNameField.clear()
 
 
-                self.fieldTag.setReadOnly(False)
-                self.fieldTag.clear()
-
-
-                self.setWindowTitle(fileDir[0])
-            else:
-                self.imgDisplay.setText('No picture found')
-
-        else:
-            self.count += 1
-            self.curTag.setText(self.tagDict[self.count][0])
-            self.pastTag.setText(str(len(self.tagDict)-self.count))
+				self.setWindowTitle(fileDir[0])
+			else: #If there are no files left to tag, quits the program
+				sys.exit()
+		else:
+			self.count += 1
+			self.tagTypeLabel.setText(self.tagDict[self.count][1])
+			self.tagCountLabel.setText(str(len(self.tagDict)-self.count))	
+			self.currentTag.setText(self.tagDict[self.count][0])
             
-            if self.count < len(self.tagDict)-1:
-                self.futureTag.setText(self.tagDict[self.count+1][0])
-            else:
-                self.futureTag.setText('-')
-            
-
-def convertToExif(file,filePath,tagList):
-
-    #Converts png files to jpg, to support exif tags
-    try:
-        if splitext(file)[1] in ('.png','.jpeg'):
-            im = Image.open(filePath+file)
-            file = splitext(file)[0]+'.jpg'
-            im.save(filePath+file)
-        chrList = []
-
-        exifDict = {
-            'Exif': {},
-            '0th': {40094: {}},
-            'Interop': {},
-            '1st': {},
-            'thumbnail': None,
-            'GPS': {}
-                }
-
-        """Converts every char in the tag string to its ASCII code
-        adds a zero after every character, this is necessary to
-        properly convert it to an EXIF tag"""
-        for chr in ';'.join(tagList):
-            chrList.extend((ord(chr), 0))
-
-        chrList.extend((0,0))
-        exifDict['0th'][40094] = chrList
-        exifBytes = piexif.dump(exifDict)
-        piexif.insert(exifBytes,filePath+file)
-    except Exception as caughtException:
-        print caughtException
-
+			if self.count < len(self.tagDicts)-1:
+				self.nextTag.setText(self.tagDict[self.count+1][0])
+			else:
+				self.nextTag.setText('-')
+				
 #TBA
 tagDict = {}
 tagRoot = ET.parse('data.xml').getroot().find('tags')
 for pos,elem in enumerate(tagRoot):
-    tagDict[pos] = [elem.text,elem.get('category')]
+	tagDict[pos] = [elem.text,elem.get('category')]
 
 #Puts all image file in a given directory, in a list
+dirRoot = ET.parse('data.xml').getroot().find('directories')
+for pos,elem in enumerate(dirRoot):
+	if elem.get('type') == 'to_tag':
+		toTagDir = elem.text
+	if elem.get('type') == 'queue':
+		queueDir = elem.text
+                
 fileDir = []
-for i in os.listdir('C:\Users\Quentin\Desktop\Downloads\To_tag\\'):
-    if splitext(i)[1] in ('.jpg','.png','.jpeg'):
-        fileDir.append(i)
+for i in os.listdir(toTagDir):
+	if splitext(i)[1] in ('.jpg','.png','.jpeg'):
+		fileDir.append(i)
 fileDir.sort()
 
+            
+def decompose_file(file,rootPath,targetPath = queueDir):
+	fileObj = {}
+	fileObj["file"] = file
+	fileObj["name"] = splitext(file)[0]
+	fileObj["ext"] = splitext(file)[1]
+	fileObj["pathNoExt"] = rootPath+fileObj["name"]
+	fileObj["pathFull"] = rootPath+file
+	fileObj["target"] = targetPath
+	fileObj["counter"] = str(len(os.listdir(targetPath)))
+	return fileObj
+	
+def convert_to_exif(file,filePath,tagList):
+
+	#Converts png files to jpg, to support exif tags
+	try:
+		if splitext(file)[1] in ('.png','.jpeg'):
+			im = Image.open(filePath+file)
+			im = im.convert("RGB")
+			im.save(filePath+splitext(file)[0]+'.jpg',quality=95)
+			os.remove(filePath+file)
+			file = splitext(file)[0]+'.jpg'
+			
+		chrList = []
+
+		exifDict = {
+			'Exif': {},
+			'0th': {40094: {}},
+			'Interop': {},
+			'1st': {},
+			'thumbnail': None,
+			'GPS': {}
+				}
+		for chr in ';'.join(tagList):
+			chrList.extend((ord(chr), 0))
+		chrList.extend((0,0))
+		exifDict['0th'][40094] = chrList
+		exifBytes = piexif.dump(exifDict)
+		piexif.insert(exifBytes,filePath+file)
+	except Exception as caughtException:
+		print caughtException
+
+
 app = QtGui.QApplication(sys.argv)
-lul = mainWin('C:\Users\Quentin\Desktop\Downloads\To_tag\\',tagDict,fileDir)
+lul = mainWin(toTagDir,tagDict,fileDir)
 sys.exit(app.exec_())
