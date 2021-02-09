@@ -1,0 +1,1 @@
+start "" python.exe "D:\Users\Pepito\Dev\Python\Archives Manager - tkinter\UI.py" %1
