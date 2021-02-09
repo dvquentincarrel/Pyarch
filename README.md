@@ -1,2 +1,2 @@
 # Pyarch
-Python script using PyQt to organize files
+Python script using tkinter to organize pictures
