@@ -125,6 +125,7 @@ def add_tags(tag_str,pic_id):
         if i == '':
             continue
         i = i.replace(' ','_')
+        i = i.replace('\'','')
         if (not i[0].isalpha()) and i[0] != "_":
             i = "_"+i
         if tag_root.find(i) == None:
