@@ -264,7 +264,7 @@ class MainWin(tk.Frame):
             cur_set_index = str(set_index+1)
             cur_set_size = str(len(picture_list))
             cur_picture_index = str(file_index+1)
-            self.parent.title(cur_picture_index+"/"+cur_set_size+" - "+current_set_name)
+            self.parent.title(cur_picture_index+"/"+cur_set_size+" ["+str(set_index+1)+"/"+str(len(self.set_list))+"] Tagger V2.0 - "+current_set_name)
             self.im = Image.open(tag_mod.SETS_DIR+current_set_name+'/'+picture_list[file_index])
         self.display_static()
          
