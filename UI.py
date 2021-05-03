@@ -118,6 +118,8 @@ class MainWin(tk.Frame):
         self.tag_box = tk.Text(self,height=8,width=15)        
         
         #--- GUI settings
+        self.parent.bind('<F1>',lambda i:pop_up('woooooo',self.parent)) #Instructions (NIY)
+        self.parent.bind('<Control-z>',lambda i:pop_up('woooooo',self.parent)) #Rollback (NIY)
         self.parent.config(menu=self.menu)
         self.tag_box.bind('<Escape>',lambda i:self.pic_processing(self.file_index,self.picture_list))
         self.menu.add_radiobutton(label="Prev", command=lambda index_mod = -1:self.pic_display_wrapper(index_mod))
