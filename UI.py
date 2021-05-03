@@ -201,8 +201,10 @@ class MainWin(tk.Frame):
                 self.file_index.set_max(len(self.picture_list)-1)
             self.mode = 'sets'
             self.tag_box.bind('<Escape>',lambda i:self.set_processing(self.file_index,self.set_index,self.picture_list,self.set_list))
-            self.menu.entryconfig(1, command=lambda index_mod = -1:self.change_set(index_mod))
-            self.menu.entryconfig(2, command=lambda index_mod = +1:self.change_set(index_mod))
+            self.menu.entryconfig(1, command=lambda index_mod = -1:self.set_display_wrapper(index_mod))
+            self.menu.entryconfig(2, command=lambda index_mod = +1:self.set_display_wrapper(index_mod))
+            self.menu.insert_radiobutton(1,label="Prev set", command=lambda index_mod = -1:self.change_set(index_mod))
+            self.menu.insert_radiobutton(1,label="Next set", command=lambda index_mod = +1:self.change_set(index_mod))
             self.set_display_wrapper(0)
             return "Sets"
         else: #Sets -> Single
@@ -213,6 +215,7 @@ class MainWin(tk.Frame):
             self.tag_box.bind('<Escape>',lambda i:self.pic_processing(self.file_index,self.picture_list))
             self.menu.entryconfig(1, command=lambda index_mod = -1:self.pic_display_wrapper(index_mod))
             self.menu.entryconfig(2, command=lambda index_mod = +1:self.pic_display_wrapper(index_mod))
+            self.menu.delete(1,2)
             self.pic_display_wrapper(0)
             return "Single"
     
