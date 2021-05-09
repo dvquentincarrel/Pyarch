@@ -9,7 +9,7 @@ import pyperclip #ONLY TO SUPPORT ADVANCED XML BROWSING
 import sys
 import traceback
 import tkinter as tk
-import functions as tag_mod
+import arch_func as tag_mod
 from tkinter import ttk
 from PIL import Image, ImageTk
 from sys import exit
