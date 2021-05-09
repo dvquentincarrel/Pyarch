@@ -1,15 +1,4 @@
-#!python3
-import os
-import random
-import time
-import re
-from PIL import Image, ImageTk
-from os.path import splitext,join
-from xml.etree import ElementTree as ET
-
-XML_FILE = "pyteg.xml"
-
-def get_gif_frames(file_name):
+def get_gif_frames(file_name: str) -> list:
     frame_list = []
     gif_file = Image.open(file_name)
     i=0
@@ -22,7 +11,7 @@ def get_gif_frames(file_name):
         print(i,"frames found")
         return frame_list
 
-def index_check(index,list_length,index_mod):
+def index_check(index: int,list_length: int,index_mod: int) -> int:
     """Check if index stays within range"""
     index += index_mod
     if index == -1: #underflow
@@ -31,7 +20,7 @@ def index_check(index,list_length,index_mod):
         index = 0
     return index
 
-def build_IF_txt_list(name_list,target_dir,mode="str"):
+def build_IF_txt_list(name_list: [str],target_dir: str,mode="str") -> [str]:
     """Formats the list of tags to be pastable in a text file for Irfanview"""
     #file_list = [target_dir+i+'.jpg' for i in name_list]
     file_list = []
@@ -48,15 +37,16 @@ def build_IF_txt_list(name_list,target_dir,mode="str"):
     elif mode=='list':
         return file_list
 
-def pic_processing(file_name,new_id,tag_list,edit_tag,SOURCE_DIR):
+def pic_processing(file_name: str,new_id: str,tag_list: [str],edit_tag: str,SOURCE_DIR: str) -> None:
     if edit_tag in tag_list:
         os.rename(SOURCE_DIR+file_name,SOURCE_DIR+edit_tag+'/'+file_name)
     else:
-        move_file(file_name,new_id)
+
         add_tags(tag_list,new_id)
+        move_file(file_name,new_id)
         update_log(new_id)
 
-def set_processing(folder_name,new_id,tag_list,elem_list):
+def set_processing(folder_name: str,new_id: str,tag_list: [str],elem_list: [str]) -> None:
     move_folder(folder_name,new_id)
     if len(elem_list) == 1:  #automatically tags single-element sets as incomplete
         tag_list += '\nincomplete'
@@ -64,7 +54,7 @@ def set_processing(folder_name,new_id,tag_list,elem_list):
     add_tags(tag_list,new_id)
     update_log(new_id)
 
-def add_name(XML_FILE,reference_tag):
+def add_name(XML_FILE: str,reference_tag: str) -> str:
     """Adds a random unique id to the $XML_FILE and returns it as a string"""
     xml_parsed = ET.parse(XML_FILE)
     xml_root = xml_parsed.getroot()
@@ -77,7 +67,7 @@ def add_name(XML_FILE,reference_tag):
     print("name" ,new_id," added")
     return new_id
 
-def get_dirs(XML_FILE,verbose=False,element="config",source_dir="source",target_dir="target",sets_dir="sets",convert_bool="convert",ext="extensions",convert_ext = "convert_ext",disp_size="max_size"):
+def get_dirs(XML_FILE: str,verbose=False,element="config",source_dir="source",target_dir="target",sets_dir="sets",convert_bool="convert",ext="extensions",convert_ext = "convert_ext",disp_size="max_size") -> [str]:
     """Parses through %XML_FILE% to get the settings, returned as a list"""
     settings_list = []
     conf_root = ET.parse(XML_FILE).getroot().find(element)
@@ -99,12 +89,12 @@ def get_dirs(XML_FILE,verbose=False,element="config",source_dir="source",target_
 os.chdir(os.path.dirname(__file__)) #Useful for relative paths
 LOG_FILE = "log.txt"
 SOURCE_DIR,TARGET_DIR,SETS_DIR,EXTENSIONS,CONVERT,CONV_EXT,DISPLAY_SIZE = get_dirs(XML_FILE)
-def change_global(new_xml):
+def change_global(new_xml) -> None:
     global XML_FILE,SOURCE_DIR,TARGET_DIR,SETS_DIR,EXTENSIONS,CONVERT,CONV_EXT,DISPLAY_SIZE
     XML_FILE = new_xml
     SOURCE_DIR,TARGET_DIR,SETS_DIR,EXTENSIONS,CONVERT,CONV_EXT,DISPLAY_SIZE = get_dirs(new_xml)
 
-def xml_cleanup():
+def xml_cleanup() -> None:
     """Hacky pretty-print of xml"""
     with open(XML_FILE,'r') as file:
         content = file.read()
@@ -116,18 +106,80 @@ def xml_cleanup():
     with open(XML_FILE,'a') as file:
         file.write(content)
 
-def add_tags(tag_str,pic_id):
+def interpret_command(command: str):
+    """Interprets the %command% tag as a command"""
+    command = command[1:] #To strip the "!"
+    if command == "del":
+        pass
+
+def control_chars(tag_list: [str]) -> [str]:
+    """Controls and corrects the presence of special characters within %tag_list%. Also handles commands"""
+    tmp_list = []
+    for i in tag_list:
+        if not (i == ''):
+
+            #Command calling
+            if "!" in i:
+                interpret_command(i)
+
+            #Accentuated :
+            i = i.replace('é','e')
+            i = i.replace('è','e')
+            i = i.replace('ê','e')
+            i = i.replace('ë','e')
+            i = i.replace('à','a')
+            i = i.replace('â','a')
+            i = i.replace('','')
+            i = i.replace('ç','c')
+            i = i.replace('î','i')
+            i = i.replace('ï','i')
+
+            #Non-alpha :
+            i = i.replace('°','_degree_')
+            i = i.replace('§','_section_')
+            i = i.replace('#','_sharp_')
+            i = i.replace('&','_amp_')
+            i = i.replace('²','_squared_')
+            i = i.replace('@','_at_sign_')
+            i = i.replace('\'','_sing_quote_')
+            i = i.replace('\"','_doub_quote_')
+            i = i.replace('{','_op_po_brack_')
+            i = i.replace('}','_cl_po_brack_')
+            i = i.replace('[','_op_sq_brack_')
+            i = i.replace(']','_cl_sq_brack_')
+            i = i.replace('(','_op_parenthese_')
+            i = i.replace(')','_cl_parenthese_')
+            i = i.replace('<','_op_chevron_')
+            i = i.replace('>','_cl_chevron_')
+            i = i.replace('=','_eql_sign_')
+            i = i.replace('+','_plus_sign_')
+            i = i.replace('%','_percent_')
+            i = i.replace('|','_pipe_')
+            i = i.replace('*','_ast_')
+            i = i.replace('~','_tilde_')
+            i = i.replace(',','_comma_')
+            i = i.replace(';','_semi_colon_')
+            i = i.replace(':','_colon_')
+            # i = i.replace('!','_excl_sign_') used for commands
+            i = i.replace('?','_quest_sign_')
+            i = i.replace('/','_backslash_')
+            i = i.replace('`','_back_quote_')
+            i = i.replace('^','_circ_accent_')
+            i = i.replace(' ','_')
+            i = i.replace('\\','_slash_')
+            if (not i[0].isalpha()) and i[0] != "_":
+                i = "_"+i
+            tmp_list.append(i)
+    return tmp_list
+
+def add_tags(tag_str: str,pic_id: str) -> bool:
     """register %pic_id%'s %tag_str% in %XML_FILE%"""
     xml_parsed = ET.parse(XML_FILE)
     tag_root = xml_parsed.getroot()
     tag_list = list(set(tag_str.split('\n')))
+    tag_list = control_chars(tag_list)
     for i in tag_list:
-        if i == '':
-            continue
-        i = i.replace(' ','_')
-        i = i.replace('\'','')
-        if (not i[0].isalpha()) and i[0] != "_":
-            i = "_"+i
+        print(i)
         if tag_root.find(i) == None:
             tag_root.append(ET.Element(i))
             tag_root.find(i).text="" #To avoid NoneType below
@@ -136,7 +188,7 @@ def add_tags(tag_str,pic_id):
     xml_cleanup()
     return True
 
-def build_file_list(source_dir): #$path is $to_tag_dir
+def build_file_list(source_dir: str) -> [str]: #$path is $to_tag_dir
     """Returns as a list, all the files with a given %EXTENSIONS% within %source_dir%"""
     file_list = []
     for i in os.listdir(source_dir):
@@ -197,13 +249,3 @@ def browse_tag():
     tag_list.reverse()
     tag_list = [i[1] for i in tag_list.copy()]
     return tag_list
-
-if __name__ == '__main__':
-    print('you launched the function module again you dumb fuck')
-
-"""
-LOG : 19/05/20 - changed $var notation to %var% notation
-    added SETS_DIR system for tagging image sets pic by pic instead of photoshopping a mosaic
-    : 03/06/20 - added function to move folder and files.
-    : 06/06/20 - added parameter for build_file_list
-"""
