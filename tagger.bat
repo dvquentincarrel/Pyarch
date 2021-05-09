@@ -1,1 +1,1 @@
-start "" python.exe "D:\Users\Pepito\Dev\Python\Archives Manager - tkinter\UI.py" %1
+start "" python.exe "D:\Users\Pepito\Dev\Python\Archives_Manager_tkinter\arch_UI.py" %1
