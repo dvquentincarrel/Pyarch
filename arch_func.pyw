@@ -1,12 +1,25 @@
-def get_gif_frames(file_name: str) -> list:
+#!python3
+import os
+import random
+import time
+import re
+from PIL import Image, ImageTk
+from os.path import splitext,join
+from xml.etree import ElementTree as ET
+
+XML_FILE = "pytag.xml"
+
+def fetch_tags(id : str) -> [str]:
+    pass
+
+def get_gif_frames(file: Image) -> list:
     frame_list = []
-    gif_file = Image.open(file_name)
     i=0
     try:
         while 1:
-            frame_list.append(ImageTk.PhotoImage(gif_file))
+            frame_list.append(ImageTk.PhotoImage(file))
             i += 1
-            gif_file.seek(i)
+            file.seek(i)
     except EOFError:
         print(i,"frames found")
         return frame_list
@@ -133,6 +146,7 @@ def control_chars(tag_list: [str]) -> [str]:
             i = i.replace('ç','c')
             i = i.replace('î','i')
             i = i.replace('ï','i')
+            i = i.replace('ù','u')
 
             #Non-alpha :
             i = i.replace('°','_degree_')
@@ -167,6 +181,7 @@ def control_chars(tag_list: [str]) -> [str]:
             i = i.replace('^','_circ_accent_')
             i = i.replace(' ','_')
             i = i.replace('\\','_slash_')
+            i = i.replace('$','_dollar_')
             if (not i[0].isalpha()) and i[0] != "_":
                 i = "_"+i
             tmp_list.append(i)
@@ -189,13 +204,15 @@ def add_tags(tag_str: str,pic_id: str) -> bool:
     return True
 
 def build_file_list(source_dir: str) -> [str]: #$path is $to_tag_dir
-    """Returns as a list, all the files with a given %EXTENSIONS% within %source_dir%"""
+    """Returns as a list, all the files with a given %EXTENSIONS% located inside %source_dir%"""
     file_list = []
-    for i in os.listdir(source_dir):
-        if splitext(i)[1] != '' and (splitext(i)[1] in EXTENSIONS or splitext(i)[1] in CONV_EXT):         file_list.append(i)
+    for file in os.listdir(source_dir):
+        if splitext(file)[1] != '' and (splitext(file)[1] in EXTENSIONS or splitext(file)[1] in CONV_EXT):
+            file_list.append(file)
     return file_list
 
 def build_set_list():
+    """Returns as a list, all the folders (or files without an extension) located inside %SETS_DIR%"""
     set_list = []
     for i in os.listdir(SETS_DIR):
         if splitext(i)[1] == '':
@@ -249,3 +266,6 @@ def browse_tag():
     tag_list.reverse()
     tag_list = [i[1] for i in tag_list.copy()]
     return tag_list
+
+if __name__ == '__main__':
+    print('you launched the function module again you dumb fuck')
