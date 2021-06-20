@@ -10,7 +10,17 @@ from xml.etree import ElementTree as ET
 XML_FILE = "pytag.xml"
 
 def fetch_tags(id : str) -> [str]:
+    """Returns as a list all of the xml elements in which the $id is found"""
+    xml_root = ET.parse(XML_FILE).getroot()
+    tag_list = []+[elem.tag for elem in xml_root.iter() if elem.text is not None and id in elem.text]
+    return tag_list
+
+def fetch_ids(tag_str: str) -> [str]:
     pass
+
+def undo_transfer() -> None:
+    pass
+
 
 def get_gif_frames(file: Image) -> list:
     frame_list = []
