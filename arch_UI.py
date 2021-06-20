@@ -1,15 +1,23 @@
 #!python3
 #===TODO===
 #options in client UI
-#change to xml dom minidom ?
+#change to xml dom minidomeee ?
 #Add set tagging refinment
 #Commands
+#Autofill + showing how many pics for each suggested tag
+#Better forbidden char test
+#Warning prompt in new tags (if tag not in list, popup demanding confirmation for whole process/for the foreign tag)
+#Ignorer des images jusqu'à reboot (bouton)
+#Add rollback for last pic
+#Separate set from picture tag by ----- (à revoir)
+#Add watermarks to pics if artist doesn't do it
+#Aliases to prevent redundancy
 import os
 import pyperclip #ONLY TO SUPPORT ADVANCED XML BROWSING
 import sys
 import traceback
 import tkinter as tk
-import arch_func as tag_mod
+import arch_func as model
 from tkinter import ttk
 from PIL import Image, ImageTk
 from sys import exit
@@ -19,9 +27,9 @@ from xml.etree import ElementTree as ET
 """Handles passed command line arguments"""
 if len(sys.argv) == 2:
     XML_FILE = str(sys.argv[1])
-    tag_mod.change_global(XML_FILE)
+    model.change_global(XML_FILE)
 else:
-    XML_FILE = tag_mod.XML_FILE
+    XML_FILE = model.XML_FILE
 
 def get_tags(id: str) -> [str]:
     """Returns as a list all of the xml elements in which the $id is found"""
@@ -69,129 +77,146 @@ def pop_up(label_text: str,mainWin: tk.Tk) -> tk.Toplevel:
     popup_button.grid(row=1,column=0)
     return popup
 
+class Tags:
+    def __init__(self,size: int):
+        self.mother_dict = {}
 
-class Index():
+class Index:
     """Behaves like an int, with added securities to avoid out of range errors"""
-    def __init__(self,max_var=0,min_var=0):
-        self.min = min_var
-        self.max = max_var
-        self.cur = 0
-    def __call__(self,value: int) -> int:
-        self.cur += int(value)
-        if self.cur < self.min:
-            self.cur = self.max
-        elif self.cur > self.max:
-            self.cur = self.min
-        return self.cur
+    def __init__(self,base=0,max=0,min=0):
+        self.min = min
+        self.max = max
+        self.current = base
+    def __call__(self,param: int) -> int:
+        self.current += int(param)
+        if self.current < self.min:
+            self.current = self.max
+        elif self.current > self.max:
+            self.current = self.min
+        return self.current
+    def __iadd__(self,other: int):
+        self.__call__(other)
+        return self
+    def __isub__(self,other: int):
+        self.__call__(other)
+        return self
     def __repr__(self) -> str:
-        return str(self.cur)
+        return str(self.current)
     def __index__(self) -> int:
-        return self.cur
-    def __add__(self,var: int) -> int:
-        return self.cur+var
-    def __sub__(self,var: int) -> int:
-        return self.cur-var
-    def set_max(self,max_var: int) -> None:
-        self.max = max_var
-    def mod_max(self,var: int) -> None:
-        self.max += var
+        return self.current
+    def __add__(self,other: int) -> int:
+        return self.current + other
+    def __sub__(self,other: int) -> int:
+        return self.current - other
+    def set_max(self,max: int) -> None:
+        if max < self.min:
+            raise Exception("max can't be below min")
+        self.max = max
+    def mod_max(self,param: int) -> None:
+        if self.max+param < self.min:
+            raise Exception("max can't be below min")
+        self.max += param
     def reset(self) -> None:
-        self.cur = 0
+        self.current = 0
 
 
 class MainWin(tk.Frame):
 
     def __init__(self,parent: tk.Tk):
-        tk.Frame.__init__(self,parent) #cuz our __init__ is larger than just the basic one (we define GUI)
+        tk.Frame.__init__(self,parent)
         self.parent = parent #To modify the root's attribute or call its methods
-        self.picture_list = tag_mod.build_file_list(tag_mod.SOURCE_DIR) #List of files to process
-        self.file_index = Index()
-        self.file_index.set_max(len(self.picture_list)-1)
-        self.set_list = tag_mod.build_set_list() #List of sets to process
-        self.set_index = Index()
-        self.set_index.set_max(len(self.set_list)-1)
+        self.pictures_names = model.build_file_list(model.SOURCE_DIR) #List of files to process
+        self.picture_index = Index(max=len(self.pictures_names)-1)
+        self.folders_names = model.build_set_list() #List of sets to process
+        self.set_index = Index(max=len(self.folders_names)-1)
+        self.gif_frames = [ImageTk]
+        self.frame_index = Index(0)
         self.mode = 'single' #Single picture tagging vs sets tagging
-        self.i = 0
-        self.anim = []
-        self.prev_type = ''
-        self.im = ''
+        self.im: Image = None
 
 
         #--- GUI defining
-        self.parent.bind('<F1>',lambda i:pop_up('woooooo',self.parent)) #Instructions (NIY)
-        self.parent.bind('<Control-z>',lambda i:pop_up('woooooo',self.parent)) #Rollback (NIY)
         self.menu = tk.Menu(self)
-        self.disp_canvas = tk.Canvas(self,background='#cccccc',offset='900,900') #Center canvas to display images to tag
-        self.disp_canvas.bind('<Button-1>',self.change_picture)
-        self.tag_box = tk.Text(self,height=8,width=15)
+        self.pic_display_canvas = tk.Canvas(self,background='#cccccc',offset='900,900') #Center canvas to display images to tag
+        self.tagging_boxes = tk.Frame(self,background='blue',width=20)
+        self.main_tag_box = tk.Text(self.tagging_boxes,width=20,height=0) #To input tags
+        self.aux_tag_box = tk.Text(self.tagging_boxes,width=20,height=0) #To input image-specific tags in a set
+
 
         #--- GUI settings
         self.parent.config(menu=self.menu)
-        self.tag_box.bind('<Escape>',lambda i:self.pic_processing(self.file_index,self.picture_list))
-        self.menu.add_radiobutton(label="Prev", command=lambda index_mod = -1:self.pic_display_wrapper(index_mod))
-        self.menu.add_radiobutton(label="Next", command=lambda index_mod = +1:self.pic_display_wrapper(index_mod))
+        self.parent.bind('<F1>',lambda i:pop_up('Aide',self.parent)) #Instructions (NIY)
+        self.parent.bind('<Control-z>',lambda i:pop_up('Rulbeck',self.parent)) #Rollback (NIY)
+        self.pic_display_canvas.bind('<Button-1>',self.clicked_arrow)
+        self.main_tag_box.bind('<Escape>',lambda i:self.processing_wrapper())
+        self.menu.add_radiobutton(label="Prev", command=lambda index_mod = -1:self.display_wrapper(index_mod))
+        self.menu.add_radiobutton(label="Next", command=lambda index_mod = +1:self.display_wrapper(index_mod))
         self.menu.add_radiobutton(label="Tags", command=self.tag_display)
         self.menu.add_radiobutton(label="Settings", command=self.settings)
-        self.menu.add_radiobutton(label="Single", command=lambda:self.menu.entryconfig(5, label=self.switch_mode()))
+        self.menu.add_radiobutton(label="Single", command=lambda:self.switch_mode())
 
         #--- GUI positioning
-        self.tag_box.grid(row=1,column=0,sticky=tk.W+tk.E+tk.N+tk.S)
-        self.disp_canvas.grid(row=1,column=1,columnspan=2)
-        self.pic_display(self.file_index,self.picture_list)
+        self.tagging_boxes.rowconfigure(0,weight=2)
+        self.tagging_boxes.rowconfigure(1,weight=1)
+        self.main_tag_box.grid(row=0,rowspan=2,sticky=tk.N+tk.S) #,sticky=tk.N+tk.S
 
-    def gif_loop(self,delay: "milliseconds: int",filename: str) -> None:
-        self.disp_canvas.delete('all')
-        self.disp_canvas.create_image(0,0,anchor=tk.NW,image=self.anim[self.i])
+        self.tagging_boxes.grid(row=0,column=0,sticky=tk.N+tk.S)
+        self.pic_display_canvas.grid(row=0,column=1)
+        self.display_wrapper(0)
+
+
+    def gif_loop(self,delay: "milliseconds: int",file: Image) -> None:
+        self.pic_display_canvas.delete('all')
+        self.pic_display_canvas.create_image(0,0,anchor=tk.NW,image=self.gif_frames[self.frame_index])
         self.display_arrows()
-        if self.i<len(self.anim)-1:
-            self.i += 1
-        else:
-            self.i = 0
-        if filename == self.im.filename:
-            tk.Label.after(self.disp_canvas,delay,lambda:self.display_animated(delay,filename))
+        self.frame_index(1)
+        if file.filename == self.im.filename: # Prevents conflict when switching to another gif
+            tk.Label.after(self.pic_display_canvas,delay,lambda:self.display_animated(delay,file))
 
-    def display_animated(self,delay: "milliseconds: int",filename: str) -> None:
-        self.disp_canvas.config(width=self.im.width,height=self.im.height)
-        if not self.anim:
-            self.anim = tag_mod.get_gif_frames(tag_mod.SOURCE_DIR+self.picture_list[self.file_index])
-        if len(self.anim) > 1:
-            self.last_anim = 0
-            self.gif_loop(delay,filename)
+    def display_animated(self,delay: "milliseconds: int",file: Image) -> None:
+        self.pic_display_canvas.config(width=self.im.width,height=self.im.height)
+        if not self.gif_frames:
+            self.gif_frames = model.get_gif_frames(self.im)
+            self.frame_index.set_max(len(self.gif_frames)-1)
+        if len(self.gif_frames) > 1:
+            self.gif_loop(delay,file)
         else:
             self.display_static()
 
-    def change_picture(self,event: tk.Event) -> None:
+    def clicked_arrow(self,event: tk.Event) -> None:
         if self.mode == 'single':
             if event.x<=self.im.width/2:
-                self.pic_display_wrapper(-1)
+                self.display_wrapper(-1)
             else:
-                self.pic_display_wrapper(1)
+                self.display_wrapper(1)
         elif self.mode == 'sets':
             if event.x<=self.im.width/2:
-                self.set_display_wrapper(-1)
+                self.display_wrapper(-1)
             else:
-                self.set_display_wrapper(1)
+                self.display_wrapper(1)
 
     def display_static(self) -> None:
-        self.disp_canvas.delete('all')
-        self.im.thumbnail(tag_mod.DISPLAY_SIZE) #Downscale picture if superior to $DISPLAY_SIZE resolution
-        self.disp_canvas.config(width=self.im.width,height=self.im.height)
+        """Updates the display for a static image"""
+        self.pic_display_canvas.delete('all')
+        self.im.thumbnail(model.DISPLAY_SIZE) #Downscale picture if superior to $DISPLAY_SIZE resolution
+        self.pic_display_canvas.config(width=self.im.width,height=self.im.height)
         self.tk_im = ImageTk.PhotoImage(self.im)
-        self.disp_canvas.create_image(0,0,anchor=tk.NW,image=self.tk_im)
+        self.pic_display_canvas.create_image(0,0,anchor=tk.NW,image=self.tk_im)
         #TEST ////
         self.display_arrows()
         #TEST ////
         self.parent.geometry("") #This forces the main window to resize itself according to the size of its widgets
 
     def display_arrows(self) -> None:
+        """Draws the arrows on the canvas"""
         height = self.im.height/2
         xmax = self.im.width
-        self.disp_canvas.create_line(
+        self.pic_display_canvas.create_line(
         75,height-50,
         25,height,
         75,height+50,
         width=20,stipple="gray50",fill="gray",activestipple="",activefill="white")
-        a= self.disp_canvas.create_line(
+        a= self.pic_display_canvas.create_line(
         xmax-75,height-50,
         xmax-25,height,
         xmax-75,height+50,
@@ -200,113 +225,117 @@ class MainWin(tk.Frame):
 
     def switch_mode(self) -> str:
         """Switch tagging mode"""
-        if self.mode == 'single': #Single -> Sets
+        if self.mode == 'single': #Single to Sets
             self.set_index.reset()
-            self.file_index.reset()
-            if self.set_list:
-                self.picture_list = tag_mod.build_file_list(tag_mod.SETS_DIR+self.set_list[self.set_index])
-                self.file_index.set_max(len(self.picture_list)-1)
+            self.picture_index.reset()
+            if self.folders_names:
+                self.pictures_names = model.build_file_list(model.SETS_DIR+self.folders_names[self.set_index])
+                self.picture_index.set_max(len(self.pictures_names)-1)
             self.mode = 'sets'
-            self.tag_box.bind('<Escape>',lambda i:self.set_processing(self.file_index,self.set_index,self.picture_list,self.set_list))
-            self.menu.entryconfig(1, command=lambda index_mod = -1:self.set_display_wrapper(index_mod))
-            self.menu.entryconfig(2, command=lambda index_mod = +1:self.set_display_wrapper(index_mod))
-            self.menu.insert_radiobutton(1,label="Prev set", command=lambda index_mod = -1:self.change_set(index_mod))
+            self.aux_tag_box.grid(row=1,sticky=tk.N+tk.S)
+            self.main_tag_box.grid(row=0,sticky=tk.N+tk.S)
+            self.menu.entryconfig(5, label="Sets")
             self.menu.insert_radiobutton(1,label="Next set", command=lambda index_mod = +1:self.change_set(index_mod))
-            self.set_display_wrapper(0)
+            self.menu.insert_radiobutton(1,label="Prev set", command=lambda index_mod = -1:self.change_set(index_mod))
+            self.display_wrapper(0)
             return "Sets"
-        else: #Sets -> Single
-            self.file_index.reset()
-            self.picture_list = tag_mod.build_file_list(tag_mod.SOURCE_DIR)
-            self.file_index.set_max(len(self.picture_list)-1)
+        else: #Sets to Single
+            self.picture_index.reset()
+            self.aux_tag_box.grid_remove()
+            self.main_tag_box.grid(row=0,rowspan=2,sticky=tk.N+tk.S)
+            self.pictures_names = model.build_file_list(model.SOURCE_DIR)
+            self.picture_index.set_max(len(self.pictures_names)-1)
             self.mode = 'single'
-            self.tag_box.bind('<Escape>',lambda i:self.pic_processing(self.file_index,self.picture_list))
-            self.menu.entryconfig(1, command=lambda index_mod = -1:self.pic_display_wrapper(index_mod))
-            self.menu.entryconfig(2, command=lambda index_mod = +1:self.pic_display_wrapper(index_mod))
             self.menu.delete(1,2)
-            self.pic_display_wrapper(0)
+            self.menu.entryconfig(5, label="Single")
+            self.display_wrapper(0)
             return "Single"
 
     def change_set(self,index_mod: int) -> None:
-        self.set_index(index_mod)
-        self.file_index.reset()
-        if self.set_list:
-            self.picture_list = tag_mod.build_file_list(tag_mod.SETS_DIR+self.set_list[self.set_index])
-            self.file_index.set_max(len(self.picture_list)-1)
-        self.set_display_wrapper(0)
+        """Changes the current set (if there are sets to proces)"""
+        self.set_index += index_mod
+        self.picture_index.reset()
+        if self.folders_names:
+            self.pictures_names = model.build_file_list(model.SETS_DIR+self.folders_names[self.set_index])
+            self.picture_index.set_max(len(self.pictures_names)-1)
+        self.display_wrapper(0)
 
-    def notif_empty_queue(self,placeholder: str) -> None:
-        self.im = Image.open(placeholder)
-        print("No file to process")
-        self.parent.iconify()
-        popup_obj = pop_up("No file to process",self.parent)
+    def display_wrapper(self,index_mod: int) -> None:
+        self.picture_index += index_mod
+        self.update_title()
+        self.gif_frames = []
+        self.frame_index.reset()
 
-    def pic_display_wrapper(self,index_mod: int) -> None:
-        self.file_index(index_mod)
-        self.pic_display(self.file_index,self.picture_list)
+        if self.mode == 'single' and self.pictures_names:
+            self.im = Image.open(model.SOURCE_DIR+self.pictures_names[self.picture_index]) #DO NOT USE A VARIABLE, UNLIKE ATTRIBUTES, THEY GET DEALT WITH BY THE GARBAGE COLLECTOR AND FUCK UP THE DISPLAY
+        elif self.mode == 'sets' and self.folders_names:
+            current_set = self.folders_names[self.set_index]
+            current_pic = self.pictures_names[self.picture_index]
+            self.im = Image.open(model.SETS_DIR+current_set+'/'+current_pic) #Same as above
+        else: #If all pics are processed
+            self.im = Image.open("D:/Users/Pepito/Pictures/Toshop/rt.jpg")
+            print("No file to process")
+            self.parent.iconify()
+            popup_obj = pop_up("No file to process",self.parent)
 
-    def set_display_wrapper(self,index_mod: int) -> None:
-        self.file_index(index_mod)
-        self.set_display(self.file_index,self.set_index,self.set_list,self.picture_list)
-
-    def pic_display(self,index: int,picture_list: [str]) -> None:
-        """Sets the pic to display inside of the canvas widget"""
-        if not picture_list: #If all pics are processed
-            self.notif_empty_queue("D:/Users/Pepito/Pictures/Toshop/rt.jpg")
-        else:
-            if self.im:
-                self.prev_type = self.im.format
-            self.anim = []
-            self.i = 0
-            list_len = str(len(picture_list))
-            self.parent.title(str(index+1)+"/"+list_len+" Tagger V2.0 - "+picture_list[index]) #7/17 Tagger V2.0 - filename.ext
-            self.im = Image.open(tag_mod.SOURCE_DIR+picture_list[index]) #DO NOT USE A VARIABLE, UNLIKE ATTRIBUTES, THEY GET DEALT WITH BY THE GARBAGE COLLECTOR AND FUCK UP THE DISPLAY
         if self.im.format in ('GIF','WEBP'):
-            self.display_animated(33,self.im.filename)
+            self.display_animated(33,self.im)
         else:
             self.display_static()
 
-    def set_display(self,file_index: int,set_index: int,set_list: [str],picture_list: [str]) -> None:
-        """Sets the set to display inside the canvas widget"""
-        if not set_list : #If all sets are processed
-            self.notif_empty_queue("D:/Users/Pepito/Pictures/Toshop/immigrey.jpg")
-        else:
-            current_set_name = set_list[set_index]
-            cur_set_index = str(set_index+1)
-            cur_set_size = str(len(picture_list))
-            cur_picture_index = str(file_index+1)
-            self.parent.title(cur_picture_index+"/"+cur_set_size+" ["+str(set_index+1)+"/"+str(len(self.set_list))+"] Tagger V2.0 - "+current_set_name)
-            self.im = Image.open(tag_mod.SETS_DIR+current_set_name+'/'+picture_list[file_index])
-        self.display_static()
+    def update_title(self) -> None:
+        if self.mode == 'single':
+            pass
+            self.parent.title(str(self.picture_index+1)
+                             +"/"
+                             +str(len(self.pictures_names))
+                             +" Tagger V2.0 - "
+                             +self.pictures_names[self.picture_index])
+        elif self.mode == 'sets':
+            self.parent.title(str(self.picture_index+1)
+                             +"/"
+                             +str(len(self.pictures_names))
+                             +" [" + str(self.set_index+1)
+                             +"/" + str(len(self.folders_names))
+                             +"] Tagger V2.0 - "
+                             +self.folders_names[self.set_index])
 
-    def pic_processing(self,index: Index,picture_list: [str]) -> None:
+    def pic_processing(self,index: Index,pictures_names: [str]) -> None:
         """ creates a random id and adds it to the xml file. Places the file in its target folder. Adds the tags to the xml file. Updates the display"""
-        if picture_list:
-            pic_id = tag_mod.add_name(XML_FILE,"name")
-            tag_mod.pic_processing(picture_list[index],pic_id,self.tag_box.get(0.0,tk.END),"toshop",tag_mod.SOURCE_DIR)
+        if pictures_names:
+            pic_id = model.add_name(XML_FILE,"name")
+            model.pic_processing(pictures_names[index],pic_id,self.main_tag_box.get(0.0,tk.END),"toshop",model.SOURCE_DIR)
             print("added file "+pic_id)
-            self.tag_box.delete(0.0,tk.END)
-            del picture_list[index] #Side effect. Litteral data cancer, will have to find a workaround.
+            self.main_tag_box.delete(0.0,tk.END)
+            del pictures_names[index] #Side effect. Litteral data cancer, will have to find a workaround.
             index.mod_max(-1) #pretty dirty too ngl
-        self.pic_display_wrapper(0)
+        self.display_wrapper(0)
 
-    def set_processing(self,file_index: Index,set_index: Index,picture_list: [str],set_list: [str]) -> None:
+    def processing_wrapper(self) -> None:
+        pass
+        if self.mode == 'single':
+            self.pic_processing(self.picture_index,self.pictures_names)
+        elif self.mode =='sets':
+            self.set_processing(self.picture_index,self.set_index,self.pictures_names,self.folders_names)
+
+    def set_processing(self,picture_index: Index,set_index: Index,pictures_names: [str],folders_names: [str]) -> None:
         """creates a random id and adds it to the xml file. Moves the set folder to the target folder. Adds the tags to the xml file. Updates the display"""
-        if file_index+1 != len(picture_list) or not self.set_list:
-            self.set_display_wrapper(+1)
+        if picture_index+1 != len(pictures_names) or not self.folders_names:
+            self.display_wrapper(+1)
         else:
             #do the real processing
-            folder_id = tag_mod.add_name(XML_FILE,"name")
-            tag_mod.set_processing(set_list[set_index],folder_id,self.tag_box.get(0.0,tk.END),picture_list)
+            folder_id = model.add_name(XML_FILE,"name")
+            model.set_processing(folders_names[set_index],folder_id,self.main_tag_box.get(0.0,tk.END),pictures_names)
             print("added folder "+folder_id)
-            self.tag_box.delete(0.0,tk.END)
-            file_index.reset()
-            del set_list[set_index]
+            self.main_tag_box.delete(0.0,tk.END)
+            picture_index.reset()
+            del folders_names[set_index]
             set_index.mod_max(-1)
-            if set_list:
-                picture_list.clear() #j'ai juré, gg les side effects
-                picture_list += tag_mod.build_file_list(tag_mod.SETS_DIR+set_list[set_index]) #d'un autre côté, c'est vrai que c'est plus simple, m'enfin merde
-                file_index.set_max(len(picture_list)-1)
-            self.set_display_wrapper(0)
+            if folders_names:
+                pictures_names.clear() #j'ai juré, gg les side effects
+                pictures_names += model.build_file_list(model.SETS_DIR+folders_names[set_index]) #d'un autre côté, c'est vrai que c'est plus simple, m'enfin merde
+                picture_index.set_max(len(pictures_names)-1)
+            self.display_wrapper(0)
 
     def tag_display(self) -> None:
         """Displays tags"""
@@ -334,7 +363,7 @@ class MainWin(tk.Frame):
 
         get_tags_entry.bind('<Return>',lambda i:self.fill_listbox(get_tags(get_tags_entry.get().lower()),get_tags_label))
         get_ids_entry.bind('<Return>',lambda i:self.fill_listbox(get_ids(get_ids_entry.get().lower()),get_ids_label))
-        get_ids_button.config(command=lambda i=0:pyperclip.copy(tag_mod.build_IF_txt_list(get_ids_label.get(0,tk.END)[2:],tag_mod.TARGET_DIR)))
+        get_ids_button.config(command=lambda i=0:pyperclip.copy(model.build_IF_txt_list(get_ids_label.get(0,tk.END)[2:],model.TARGET_DIR)))
 
         all_tags_scrollbar.config(command=all_tags_label.yview)
         get_tags_scrollbar.config(command=get_tags_label.yview)
@@ -359,10 +388,8 @@ class MainWin(tk.Frame):
         tabs.add(get_tags_frame,text="get tags")
         tabs.add(get_ids_frame,text="get ids")
 
-        for i in tag_mod.browse_tag():
+        for i in model.browse_tag():
             all_tags_label.insert(tk.END,i)
-
-
 
     def fill_listbox(self,elem_list: [str],listbox :tk.Listbox) -> None:
         listbox.delete(0,tk.END)
@@ -378,7 +405,7 @@ class MainWin(tk.Frame):
         """Displays settings"""
         popup = tk.Toplevel()
         settings_label = tk.Text(popup)
-        for i in tag_mod.get_dirs(XML_FILE,verbose=True):
+        for i in model.get_dirs(XML_FILE,verbose=True):
             settings_label.insert(tk.INSERT,str(i)+'\n')
         settings_label.grid(row=0,column=0)
         settings_label.config(state=tk.DISABLED)
@@ -387,7 +414,7 @@ try:
     os.chdir(os.path.dirname(__file__))
     tk_root = tk.Tk()
     lul = MainWin(tk_root)
-    lul.grid(row=0,column=0)
+    lul.pack()
     tk_root.mainloop()
 except: #for debugging
     input(traceback.print_exc()) #Prints the entire traceback
