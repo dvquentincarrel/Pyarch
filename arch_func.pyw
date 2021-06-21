@@ -27,6 +27,12 @@ class Index:
 class Tags:
     pass
 
+def set_processing(picture_index: Index, set_index: Index,
+        pictures_names: [str], folder_names: [str]) -> None:
+    pass
+
+def pic_processing(self,index: Index,pictures_names: [str]) -> None:
+    pass
 
 def get_gif_frames(file: Image) -> list:
     frame_list = []
