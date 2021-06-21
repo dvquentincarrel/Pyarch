@@ -16,7 +16,34 @@ def fetch_tags(id : str) -> [str]:
     return tag_list
 
 def fetch_ids(tag_str: str) -> [str]:
-    pass
+    """Returns as a list all of ids in the $tag xml element"""
+    xml_root = ET.parse(XML_FILE).getroot()
+    if ' ' not in tag_str: #single tag processing
+        elem_search = xml_root.find(tag_str)
+        if elem_search != None:
+            print("found")
+            id_list = elem_search.text.split('\n')
+        else:
+            print("nothing found")
+            return []
+    else: #multiple tag processing
+        id_list = []
+        if ' and ' in tag_str: #Returns only the ids matching with all the tags
+            temp_list = []
+            tag_list = tag_str.split(' and ')
+            for i in tag_list:
+                if xml_root.find(i) != None:
+                    temp_list += xml_root.find(i).text.split('\n')
+            for i in temp_list:
+                if temp_list.count(i) == len(tag_list):
+                    id_list.append(i)
+        else: #Return all ids matching with at least one tag
+            tag_list = tag_str.split(' ')
+            for i in tag_list:
+                if xml_root.find(i) != None:
+                    id_list += xml_root.find(i).text.split('\n')
+        id_list = list(set(id_list))
+    return id_list[1:] #First element is always empty because of xml formatting
 
 def undo_transfer() -> None:
     pass
