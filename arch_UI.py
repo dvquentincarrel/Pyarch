@@ -31,13 +31,13 @@ if len(sys.argv) == 2:
 else:
     XML_FILE = model.XML_FILE
 
-def get_tags(id: str) -> [str]:
+def get_tags(id: str) -> [str]: #moved to model
     """Returns as a list all of the xml elements in which the $id is found"""
     xml_root = ET.parse(XML_FILE).getroot()
     tag_list = []+[elem.tag for elem in xml_root.iter() if elem.text is not None and id in elem.text]
     return tag_list
 
-def get_ids(tag_str: str) -> [str]:
+def get_ids(tag_str: str) -> [str]: #moved to model
     """Returns as a list all of ids in the $tag xml element"""
     xml_root = ET.parse(XML_FILE).getroot()
     if ' ' not in tag_str: #single tag processing
@@ -300,7 +300,7 @@ class MainWin(tk.Frame):
                              +"] Tagger V2.0 - "
                              +self.folders_names[self.set_index])
 
-    def pic_processing(self,index: Index,pictures_names: [str]) -> None:
+    def pic_processing(self,index: Index,pictures_names: [str]) -> None: #moved to model
         """ creates a random id and adds it to the xml file. Places the file in its target folder. Adds the tags to the xml file. Updates the display"""
         if pictures_names:
             pic_id = model.add_name(XML_FILE,"name")
@@ -318,7 +318,7 @@ class MainWin(tk.Frame):
         elif self.mode =='sets':
             self.set_processing(self.picture_index,self.set_index,self.pictures_names,self.folders_names)
 
-    def set_processing(self,picture_index: Index,set_index: Index,pictures_names: [str],folders_names: [str]) -> None:
+    def set_processing(self,picture_index: Index,set_index: Index,pictures_names: [str],folders_names: [str]) -> None: #moved to model
         """creates a random id and adds it to the xml file. Moves the set folder to the target folder. Adds the tags to the xml file. Updates the display"""
         if picture_index+1 != len(pictures_names) or not self.folders_names:
             self.display_wrapper(+1)
@@ -391,7 +391,7 @@ class MainWin(tk.Frame):
         for i in model.browse_tag():
             all_tags_label.insert(tk.END,i)
 
-    def fill_listbox(self,elem_list: [str],listbox :tk.Listbox) -> None:
+    def fill_listbox(self,elem_list: [str], listbox: tk.Listbox) -> None:
         listbox.delete(0,tk.END)
         if len(elem_list) == 0:
             listbox.insert(0,"No result found")
