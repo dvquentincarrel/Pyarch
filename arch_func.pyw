@@ -21,6 +21,12 @@ def fetch_ids(tag_str: str) -> [str]:
 def undo_transfer() -> None:
     pass
 
+class Index:
+    pass
+
+class Tags:
+    pass
+
 
 def get_gif_frames(file: Image) -> list:
     frame_list = []
