@@ -17,7 +17,7 @@ import pyperclip #ONLY TO SUPPORT ADVANCED XML BROWSING
 import sys
 import traceback
 import tkinter as tk
-import arch_func as model
+import arch_model as model
 from tkinter import ttk
 from PIL import Image, ImageTk
 from sys import exit
