@@ -92,9 +92,10 @@ class Tags:
 
 def set_processing(picture_index: Index, set_index: Index,
         pictures_names: [str], folder_names: [str]) -> None:
+    """creates a random id and adds it to the xml file. Moves the set folder to the target folder. Adds the tags to the xml file. Updates the display"""
     pass
 
-def pic_processing(self,index: Index,pictures_names: [str]) -> None:
+def pic_processing(index: Index,pictures_names: [str]) -> None:
     pass
 
 def get_gif_frames(file: Image) -> list:
@@ -108,15 +109,6 @@ def get_gif_frames(file: Image) -> list:
     except EOFError:
         print(i,"frames found")
         return frame_list
-
-def index_check(index: int,list_length: int,index_mod: int) -> int:
-    """Check if index stays within range"""
-    index += index_mod
-    if index == -1: #underflow
-        index = list_length-1
-    elif index == list_length: #overflow
-        index = 0
-    return index
 
 def build_IF_txt_list(name_list: [str],target_dir: str,mode="str") -> [str]:
     """Formats the list of tags to be pastable in a text file for Irfanview"""
