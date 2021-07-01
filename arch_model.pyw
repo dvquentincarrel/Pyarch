@@ -179,6 +179,7 @@ def get_dirs(XML_FILE: str,verbose=False,element="config",source_dir="source",ta
 os.chdir(os.path.dirname(__file__)) #Useful for relative paths
 LOG_FILE = "log.txt"
 SOURCE_DIR,TARGET_DIR,SETS_DIR,EXTENSIONS,CONVERT,CONV_EXT,DISPLAY_SIZE = get_dirs(XML_FILE)
+
 def change_global(new_xml) -> None:
     global XML_FILE,SOURCE_DIR,TARGET_DIR,SETS_DIR,EXTENSIONS,CONVERT,CONV_EXT,DISPLAY_SIZE
     XML_FILE = new_xml
