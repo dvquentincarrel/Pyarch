@@ -77,60 +77,17 @@ def pop_up(label_text: str,mainWin: tk.Tk) -> tk.Toplevel:
     popup_button.grid(row=1,column=0)
     return popup
 
-class Tags:
-    def __init__(self,size: int):
-        self.mother_dict = {}
-
-class Index:
-    """Behaves like an int, with added securities to avoid out of range errors"""
-    def __init__(self,base=0,max=0,min=0):
-        self.min = min
-        self.max = max
-        self.current = base
-    def __call__(self,param: int) -> int:
-        self.current += int(param)
-        if self.current < self.min:
-            self.current = self.max
-        elif self.current > self.max:
-            self.current = self.min
-        return self.current
-    def __iadd__(self,other: int):
-        self.__call__(other)
-        return self
-    def __isub__(self,other: int):
-        self.__call__(other)
-        return self
-    def __repr__(self) -> str:
-        return str(self.current)
-    def __index__(self) -> int:
-        return self.current
-    def __add__(self,other: int) -> int:
-        return self.current + other
-    def __sub__(self,other: int) -> int:
-        return self.current - other
-    def set_max(self,max: int) -> None:
-        if max < self.min:
-            raise Exception("max can't be below min")
-        self.max = max
-    def mod_max(self,param: int) -> None:
-        if self.max+param < self.min:
-            raise Exception("max can't be below min")
-        self.max += param
-    def reset(self) -> None:
-        self.current = 0
-
-
 class MainWin(tk.Frame):
 
     def __init__(self,parent: tk.Tk):
         tk.Frame.__init__(self,parent)
         self.parent = parent #To modify the root's attribute or call its methods
         self.pictures_names = model.build_file_list(model.SOURCE_DIR) #List of files to process
-        self.picture_index = Index(max=len(self.pictures_names)-1)
+        self.picture_index = model.Index(max=len(self.pictures_names)-1)
         self.folders_names = model.build_set_list() #List of sets to process
-        self.set_index = Index(max=len(self.folders_names)-1)
+        self.set_index = model.Index(max=len(self.folders_names)-1)
         self.gif_frames = [ImageTk]
-        self.frame_index = Index(0)
+        self.frame_index = model.Index(0)
         self.mode = 'single' #Single picture tagging vs sets tagging
         self.im: Image = None
 
@@ -300,7 +257,7 @@ class MainWin(tk.Frame):
                              +"] Tagger V2.0 - "
                              +self.folders_names[self.set_index])
 
-    def pic_processing(self,index: Index,pictures_names: [str]) -> None: #moved to model
+    def pic_processing(self,index: model.Index,pictures_names: [str]) -> None: #moved to model
         """ creates a random id and adds it to the xml file. Places the file in its target folder. Adds the tags to the xml file. Updates the display"""
         if pictures_names:
             pic_id = model.add_name(XML_FILE,"name")
@@ -318,7 +275,7 @@ class MainWin(tk.Frame):
         elif self.mode =='sets':
             self.set_processing(self.picture_index,self.set_index,self.pictures_names,self.folders_names)
 
-    def set_processing(self,picture_index: Index,set_index: Index,pictures_names: [str],folders_names: [str]) -> None: #moved to model
+    def set_processing(self,picture_index: model.Index,set_index: model.Index,pictures_names: [str],folders_names: [str]) -> None: #moved to model
         """creates a random id and adds it to the xml file. Moves the set folder to the target folder. Adds the tags to the xml file. Updates the display"""
         if picture_index+1 != len(pictures_names) or not self.folders_names:
             self.display_wrapper(+1)

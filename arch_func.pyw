@@ -49,10 +49,46 @@ def undo_transfer() -> None:
     pass
 
 class Index:
-    pass
+    """Behaves like an int, with added securities to avoid out of range errors"""
+    def __init__(self,base=0,max=0,min=0):
+        self.min = min
+        self.max = max
+        self.current = base
+    def __call__(self,param: int) -> int:
+        self.current += int(param)
+        if self.current < self.min:
+            self.current = self.max
+        elif self.current > self.max:
+            self.current = self.min
+        return self.current
+    def __iadd__(self,other: int):
+        self.__call__(other)
+        return self
+    def __isub__(self,other: int):
+        self.__call__(other)
+        return self
+    def __repr__(self) -> str:
+        return str(self.current)
+    def __index__(self) -> int:
+        return self.current
+    def __add__(self,other: int) -> int:
+        return self.current + other
+    def __sub__(self,other: int) -> int:
+        return self.current - other
+    def set_max(self,max: int) -> None:
+        if max < self.min:
+            raise Exception("max can't be below min")
+        self.max = max
+    def mod_max(self,param: int) -> None:
+        if self.max+param < self.min:
+            raise Exception("max can't be below min")
+        self.max += param
+    def reset(self) -> None:
+        self.current = 0
 
 class Tags:
-    pass
+    def __init__(self,size: int):
+        self.mother_dict = {}
 
 def set_processing(picture_index: Index, set_index: Index,
         pictures_names: [str], folder_names: [str]) -> None:
