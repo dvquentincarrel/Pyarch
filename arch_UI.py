@@ -18,6 +18,7 @@ import sys
 import traceback
 import tkinter as tk
 import arch_model as model
+import arch_con as control
 from tkinter import ttk
 from PIL import Image, ImageTk
 from sys import exit
@@ -318,8 +319,8 @@ class MainWin(tk.Frame):
         get_ids_entry = tk.Entry(get_ids_frame)
         get_ids_button = tk.Button(get_ids_frame,text="copy")
 
-        get_tags_entry.bind('<Return>',lambda i:self.fill_listbox(get_tags(get_tags_entry.get().lower()),get_tags_label))
-        get_ids_entry.bind('<Return>',lambda i:self.fill_listbox(get_ids(get_ids_entry.get().lower()),get_ids_label))
+        get_tags_entry.bind('<Return>',lambda i:self.fill_listbox(control.get_tags_of_id(get_tags_entry.get().lower()),get_tags_label))
+        get_ids_entry.bind('<Return>',lambda i:self.fill_listbox(control.filter_ids_by_tag(get_ids_entry.get().lower()),get_ids_label))
         get_ids_button.config(command=lambda i=0:pyperclip.copy(model.build_IF_txt_list(get_ids_label.get(0,tk.END)[2:],model.TARGET_DIR)))
 
         all_tags_scrollbar.config(command=all_tags_label.yview)
